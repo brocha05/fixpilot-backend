@@ -1,0 +1,440 @@
+// ─── Prisma Schema ─────────────────────────────────────────────────────────────
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ─────────────────────────────────────────────────────────────────────
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  MEMBER
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  INCOMPLETE
+  TRIALING
+  UNPAID
+}
+
+enum PlanInterval {
+  MONTH
+  YEAR
+}
+
+enum EmailLogStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+// ─── Repair Management Enums ───────────────────────────────────────────────────
+
+enum RepairStatus {
+  PENDING
+  DIAGNOSED
+  WAITING_APPROVAL
+  APPROVED
+  IN_PROGRESS
+  WAITING_PARTS
+  COMPLETED
+  DELIVERED
+  CANCELLED
+}
+
+enum UrgencyLevel {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum ExpenseCategory {
+  PARTS
+  TOOLS
+  SHIPPING
+  UTILITIES
+  SALARIES
+  RENT
+  MARKETING
+  OTHER
+}
+
+// ─── Company ───────────────────────────────────────────────────────────────────
+
+model Company {
+  id               String        @id @default(uuid()) @db.Uuid
+  name             String
+  slug             String        @unique
+  logoUrl          String?       @map("logo_url")
+  stripeCustomerId String?       @unique @map("stripe_customer_id")
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime      @updatedAt @map("updated_at")
+  deletedAt        DateTime?     @map("deleted_at")
+
+  users             User[]
+  subscriptions     Subscription[]
+  files             File[]
+  emailLogs         EmailLog[]
+  invitationTokens  InvitationToken[]
+  customers         Customer[]
+  repairOrders      RepairOrder[]
+  expenses          Expense[]
+
+  @@index([slug])
+  @@index([deletedAt])
+  @@index([deletedAt, id])
+  @@map("companies")
+}
+
+// ─── User ──────────────────────────────────────────────────────────────────────
+
+model User {
+  id               String    @id @default(uuid()) @db.Uuid
+  email            String    @unique
+  password         String
+  firstName        String    @map("first_name")
+  lastName         String    @map("last_name")
+  role             UserRole  @default(MEMBER)
+  isActive         Boolean   @default(true) @map("is_active")
+  emailVerified    Boolean   @default(false) @map("email_verified")
+  companyId        String    @db.Uuid @map("company_id")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+  deletedAt        DateTime? @map("deleted_at")
+
+  company                    Company                     @relation(fields: [companyId], references: [id])
+  refreshTokens              RefreshToken[]
+  passwordResetTokens        PasswordResetToken[]
+  emailVerificationTokens    EmailVerificationToken[]
+  files                      File[]
+  emailLogs                  EmailLog[]
+  repairOrderComments        RepairOrderComment[]
+
+  @@index([email])
+  @@index([companyId])
+  @@index([deletedAt])
+  @@index([companyId, deletedAt])
+  @@index([companyId, role])
+  @@map("users")
+}
+
+// ─── RefreshToken ──────────────────────────────────────────────────────────────
+
+model RefreshToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  token     String    @unique
+  userId    String    @db.Uuid @map("user_id")
+  expiresAt DateTime  @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@map("refresh_tokens")
+}
+
+// ─── PasswordResetToken ────────────────────────────────────────────────────────
+
+model PasswordResetToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  token     String    @unique
+  userId    String    @db.Uuid @map("user_id")
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([userId])
+  @@map("password_reset_tokens")
+}
+
+// ─── EmailVerificationToken ────────────────────────────────────────────────────
+
+model EmailVerificationToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  token     String    @unique
+  userId    String    @db.Uuid @map("user_id")
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([userId])
+  @@map("email_verification_tokens")
+}
+
+// ─── Plan ──────────────────────────────────────────────────────────────────────
+
+model Plan {
+  id              String       @id @default(uuid()) @db.Uuid
+  name            String
+  slug            String       @unique
+  stripePriceId   String       @unique @map("stripe_price_id")
+  stripeProductId String       @map("stripe_product_id")
+  interval        PlanInterval
+  price           Int
+  currency        String       @default("usd")
+  isActive        Boolean      @default(true) @map("is_active")
+  features        Json         @default("[]")
+  limits          Json         @default("{}")
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+
+  subscriptions   Subscription[]
+
+  @@index([slug])
+  @@map("plans")
+}
+
+// ─── Subscription ──────────────────────────────────────────────────────────────
+
+model Subscription {
+  id                   String             @id @default(uuid()) @db.Uuid
+  companyId            String             @db.Uuid @map("company_id")
+  planId               String             @db.Uuid @map("plan_id")
+  stripeSubscriptionId String             @unique @map("stripe_subscription_id")
+  status               SubscriptionStatus @default(INCOMPLETE)
+  currentPeriodStart   DateTime           @map("current_period_start")
+  currentPeriodEnd     DateTime           @map("current_period_end")
+  cancelAtPeriodEnd    Boolean            @default(false) @map("cancel_at_period_end")
+  canceledAt           DateTime?          @map("canceled_at")
+  trialStart           DateTime?          @map("trial_start")
+  trialEnd             DateTime?          @map("trial_end")
+  createdAt            DateTime           @default(now()) @map("created_at")
+  updatedAt            DateTime           @updatedAt @map("updated_at")
+
+  company              Company            @relation(fields: [companyId], references: [id])
+  plan                 Plan               @relation(fields: [planId], references: [id])
+
+  @@index([companyId])
+  @@index([status])
+  @@index([stripeSubscriptionId])
+  @@index([companyId, status])
+  @@map("subscriptions")
+}
+
+// ─── ProcessedStripeEvent ──────────────────────────────────────────────────────
+
+model ProcessedStripeEvent {
+  id            String   @id @default(uuid()) @db.Uuid
+  stripeEventId String   @unique @map("stripe_event_id")
+  type          String
+  processedAt   DateTime @default(now()) @map("processed_at")
+
+  @@index([processedAt])
+  @@map("processed_stripe_events")
+}
+
+// ─── EmailLog ─────────────────────────────────────────────────────────────────
+
+model EmailLog {
+  id         String         @id @default(uuid()) @db.Uuid
+  companyId  String?        @db.Uuid @map("company_id")
+  userId     String?        @db.Uuid @map("user_id")
+
+  event      String
+  recipient  String
+  subject    String
+  status     EmailLogStatus @default(PENDING)
+  sentAt     DateTime?      @map("sent_at")
+  error      String?
+
+  createdAt  DateTime       @default(now()) @map("created_at")
+
+  company    Company?       @relation(fields: [companyId], references: [id])
+  user       User?          @relation(fields: [userId], references: [id])
+
+  @@index([companyId])
+  @@index([userId])
+  @@index([status])
+  @@index([event])
+  @@index([companyId, status])
+  @@map("email_logs")
+}
+
+// ─── InvitationToken ───────────────────────────────────────────────────────────
+
+model InvitationToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  token     String    @unique
+  email     String
+  companyId String    @db.Uuid @map("company_id")
+  invitedBy String    @db.Uuid @map("invited_by")
+  role      UserRole  @default(MEMBER)
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  company   Company   @relation(fields: [companyId], references: [id])
+
+  @@index([token])
+  @@index([email])
+  @@index([companyId])
+  @@map("invitation_tokens")
+}
+
+// ─── File ──────────────────────────────────────────────────────────────────────
+
+model File {
+  id           String    @id @default(uuid()) @db.Uuid
+  companyId    String    @db.Uuid @map("company_id")
+  uploadedById String    @db.Uuid @map("uploaded_by_id")
+
+  key          String    @unique
+  bucket       String
+
+  originalName String    @map("original_name")
+  mimeType     String    @map("mime_type")
+  size         Int
+
+  resourceType String?   @map("resource_type")
+  resourceId   String?   @map("resource_id")
+
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  company      Company   @relation(fields: [companyId], references: [id])
+  uploadedBy   User      @relation(fields: [uploadedById], references: [id])
+
+  @@index([companyId])
+  @@index([uploadedById])
+  @@index([resourceType, resourceId])
+  @@index([deletedAt])
+  @@index([companyId, deletedAt])
+  @@index([companyId, resourceType, resourceId])
+  @@map("files")
+}
+
+// ─── Customer ─────────────────────────────────────────────────────────────────
+
+model Customer {
+  id        String   @id @default(uuid()) @db.Uuid
+  companyId String   @db.Uuid @map("company_id")
+  name      String
+  phone     String
+  email     String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  company      Company       @relation(fields: [companyId], references: [id])
+  repairOrders RepairOrder[]
+
+  @@index([companyId])
+  @@index([phone])
+  @@index([companyId, phone])
+  @@map("customers")
+}
+
+// ─── RepairOrder ──────────────────────────────────────────────────────────────
+
+model RepairOrder {
+  id                  String       @id @default(uuid()) @db.Uuid
+  companyId           String       @db.Uuid @map("company_id")
+  customerId          String       @db.Uuid @map("customer_id")
+  deviceModel         String       @map("device_model")
+  issueDescription    String       @map("issue_description")
+  status              RepairStatus @default(PENDING)
+  urgencyLevel        UrgencyLevel @default(NORMAL) @map("urgency_level")
+  costEstimate        Decimal?     @map("cost_estimate") @db.Decimal(10, 2)
+  finalPrice          Decimal?     @map("final_price") @db.Decimal(10, 2)
+  isApproved          Boolean      @default(false) @map("is_approved")
+  publicTrackingToken String       @unique @map("public_tracking_token")
+  createdAt           DateTime     @default(now()) @map("created_at")
+  updatedAt           DateTime     @updatedAt @map("updated_at")
+  completedAt         DateTime?    @map("completed_at")
+  approvedAt          DateTime?    @map("approved_at")
+
+  company       Company                   @relation(fields: [companyId], references: [id])
+  customer      Customer                  @relation(fields: [customerId], references: [id])
+  images        RepairOrderImage[]
+  comments      RepairOrderComment[]
+  statusHistory RepairOrderStatusHistory[]
+
+  @@index([companyId])
+  @@index([customerId])
+  @@index([status])
+  @@index([publicTrackingToken])
+  @@index([companyId, status])
+  @@index([companyId, createdAt])
+  @@map("repair_orders")
+}
+
+// ─── RepairOrderImage ─────────────────────────────────────────────────────────
+
+model RepairOrderImage {
+  id      String @id @default(uuid()) @db.Uuid
+  orderId String @db.Uuid @map("order_id")
+  fileKey String @map("file_key")
+
+  order RepairOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@map("repair_order_images")
+}
+
+// ─── RepairOrderComment ───────────────────────────────────────────────────────
+
+model RepairOrderComment {
+  id        String   @id @default(uuid()) @db.Uuid
+  orderId   String   @db.Uuid @map("order_id")
+  authorId  String?  @db.Uuid @map("author_id")
+  message   String
+  internal  Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  order  RepairOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  author User?       @relation(fields: [authorId], references: [id])
+
+  @@index([orderId])
+  @@index([orderId, internal])
+  @@map("repair_order_comments")
+}
+
+// ─── RepairOrderStatusHistory ─────────────────────────────────────────────────
+
+model RepairOrderStatusHistory {
+  id             String        @id @default(uuid()) @db.Uuid
+  orderId        String        @db.Uuid @map("order_id")
+  previousStatus RepairStatus? @map("previous_status")
+  newStatus      RepairStatus  @map("new_status")
+  changedBy      String?       @db.Uuid @map("changed_by")
+  timestamp      DateTime      @default(now())
+
+  order RepairOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([orderId, timestamp])
+  @@map("repair_order_status_history")
+}
+
+// ─── Expense ──────────────────────────────────────────────────────────────────
+
+model Expense {
+  id          String          @id @default(uuid()) @db.Uuid
+  companyId   String          @db.Uuid @map("company_id")
+  description String
+  amount      Decimal         @db.Decimal(10, 2)
+  category    ExpenseCategory
+  createdAt   DateTime        @default(now()) @map("created_at")
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@index([companyId])
+  @@index([companyId, category])
+  @@index([companyId, createdAt])
+  @@map("expenses")
+}
