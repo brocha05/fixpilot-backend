@@ -12,21 +12,15 @@ import {
   HttpStatus,
   UseGuards,
 } from '@nestjs/common';
-import {
-  ApiBearerAuth,
-  ApiOperation,
-  ApiQuery,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { UserRole } from '@prisma/client';
 
 import { CustomersService } from './customers.service';
-import { CreateCustomerDto, UpdateCustomerDto } from './dto';
+import { CreateCustomerDto, UpdateCustomerDto, ListCustomersDto } from './dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { PaginationDto } from '../../common/dto/pagination.dto';
 import type { JwtPayload } from '../../common/interfaces';
 
 @ApiTags('Clientes')
@@ -46,17 +40,8 @@ export class CustomersController {
 
   @Get()
   @ApiOperation({ summary: 'Listar clientes de la empresa' })
-  @ApiQuery({
-    name: 'search',
-    required: false,
-    description: 'Buscar por nombre, teléfono o email',
-  })
-  findAll(
-    @CurrentUser() user: JwtPayload,
-    @Query() pagination: PaginationDto,
-    @Query('search') search?: string,
-  ) {
-    return this.customersService.findAll(user.companyId, pagination, search);
+  findAll(@CurrentUser() user: JwtPayload, @Query() query: ListCustomersDto) {
+    return this.customersService.findAll(user.companyId, query);
   }
 
   @Get(':id')

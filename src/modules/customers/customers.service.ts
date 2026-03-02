@@ -5,11 +5,11 @@ import {
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { PaginationDto } from '../../common/dto/pagination.dto';
 import {
   CreateCustomerDto,
   UpdateCustomerDto,
   CustomerResponseDto,
+  ListCustomersDto,
 } from './dto';
 
 export interface PaginatedCustomers {
@@ -53,11 +53,11 @@ export class CustomersService {
 
   async findAll(
     companyId: string,
-    pagination: PaginationDto,
-    search?: string,
+    query: ListCustomersDto,
   ): Promise<PaginatedCustomers> {
-    const { page = 1, limit = 20, skip } = pagination;
+    const { page = 1, limit = 20, skip, search } = query;
 
+    console.log({ page, limit, skip, search, companyId });
     const where = {
       companyId,
       ...(search

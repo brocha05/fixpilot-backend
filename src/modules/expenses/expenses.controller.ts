@@ -12,21 +12,15 @@ import {
   HttpStatus,
   UseGuards,
 } from '@nestjs/common';
-import {
-  ApiBearerAuth,
-  ApiOperation,
-  ApiQuery,
-  ApiTags,
-} from '@nestjs/swagger';
-import { ExpenseCategory, UserRole } from '@prisma/client';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { UserRole } from '@prisma/client';
 
 import { ExpensesService } from './expenses.service';
-import { CreateExpenseDto, UpdateExpenseDto } from './dto';
+import { CreateExpenseDto, UpdateExpenseDto, ListExpensesDto } from './dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { PaginationDto } from '../../common/dto/pagination.dto';
 import type { JwtPayload } from '../../common/interfaces';
 
 @ApiTags('Gastos')
@@ -46,23 +40,8 @@ export class ExpensesController {
 
   @Get()
   @ApiOperation({ summary: 'Listar gastos con filtros opcionales' })
-  @ApiQuery({ name: 'category', required: false, enum: ExpenseCategory })
-  @ApiQuery({ name: 'fromDate', required: false, example: '2024-01-01' })
-  @ApiQuery({ name: 'toDate', required: false, example: '2024-12-31' })
-  findAll(
-    @CurrentUser() user: JwtPayload,
-    @Query() pagination: PaginationDto,
-    @Query('category') category?: ExpenseCategory,
-    @Query('fromDate') fromDate?: string,
-    @Query('toDate') toDate?: string,
-  ) {
-    return this.expensesService.findAll(
-      user.companyId,
-      pagination,
-      category,
-      fromDate,
-      toDate,
-    );
+  findAll(@CurrentUser() user: JwtPayload, @Query() query: ListExpensesDto) {
+    return this.expensesService.findAll(user.companyId, query);
   }
 
   @Get(':id')

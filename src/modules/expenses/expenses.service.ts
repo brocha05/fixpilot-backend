@@ -1,8 +1,11 @@
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { PaginationDto } from '../../common/dto/pagination.dto';
-import { CreateExpenseDto, UpdateExpenseDto, ExpenseResponseDto } from './dto';
-import { ExpenseCategory } from '@prisma/client';
+import {
+  CreateExpenseDto,
+  UpdateExpenseDto,
+  ExpenseResponseDto,
+  ListExpensesDto,
+} from './dto';
 
 export interface PaginatedExpenses {
   data: ExpenseResponseDto[];
@@ -32,12 +35,9 @@ export class ExpensesService {
 
   async findAll(
     companyId: string,
-    pagination: PaginationDto,
-    category?: ExpenseCategory,
-    fromDate?: string,
-    toDate?: string,
+    query: ListExpensesDto,
   ): Promise<PaginatedExpenses> {
-    const { page = 1, limit = 20, skip } = pagination;
+    const { page = 1, limit = 20, skip, category, fromDate, toDate } = query;
 
     const where = {
       companyId,
