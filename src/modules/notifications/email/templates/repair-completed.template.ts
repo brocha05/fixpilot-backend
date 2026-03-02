@@ -8,7 +8,10 @@ interface RepairCompletedCtx {
 }
 
 function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(amount);
+  return new Intl.NumberFormat('es-MX', {
+    style: 'currency',
+    currency: 'MXN',
+  }).format(amount);
 }
 
 export function repairCompletedTemplate(ctx: RepairCompletedCtx): {
@@ -16,14 +19,16 @@ export function repairCompletedTemplate(ctx: RepairCompletedCtx): {
   html: string;
   text: string;
 } {
-  const priceLine = ctx.finalPrice != null
-    ? `<p style="margin:16px 0 6px;font-size:13px;color:#777;text-transform:uppercase;letter-spacing:1px;">Total a pagar</p>
+  const priceLine =
+    ctx.finalPrice != null
+      ? `<p style="margin:16px 0 6px;font-size:13px;color:#777;text-transform:uppercase;letter-spacing:1px;">Total a pagar</p>
        <p style="margin:0;font-size:22px;font-weight:700;color:#16a34a;">${formatCurrency(ctx.finalPrice)}</p>`
-    : '';
+      : '';
 
-  const priceText = ctx.finalPrice != null
-    ? `\nTotal a pagar: ${formatCurrency(ctx.finalPrice)}\n`
-    : '';
+  const priceText =
+    ctx.finalPrice != null
+      ? `\nTotal a pagar: ${formatCurrency(ctx.finalPrice)}\n`
+      : '';
 
   return {
     subject: `¡Tu equipo está listo para recoger! — ${ctx.appName}`,

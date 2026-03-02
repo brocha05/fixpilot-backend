@@ -33,7 +33,11 @@ import { HealthModule } from './modules/health/health.module';
 import { FilesModule } from './modules/files/files.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { AdminModule } from './modules/admin/admin.module';
-import { RepairManagementModule } from './modules/repair-management/repair-management.module';
+import { CustomersModule } from './modules/customers/customers.module';
+import { RepairOrdersModule } from './modules/repair-orders/repair-orders.module';
+import { ExpensesModule } from './modules/expenses/expenses.module';
+import { AnalyticsModule } from './modules/analytics/analytics.module';
+import { PublicModule } from './modules/public/public.module';
 
 @Module({
   imports: [
@@ -90,7 +94,11 @@ import { RepairManagementModule } from './modules/repair-management/repair-manag
     FilesModule,
     NotificationsModule,
     AdminModule,
-    RepairManagementModule,
+    CustomersModule,
+    RepairOrdersModule,
+    ExpensesModule,
+    AnalyticsModule,
+    PublicModule,
 
     // ─── Event Bus ────────────────────────────────────────────────────────────
     EventEmitterModule.forRoot({

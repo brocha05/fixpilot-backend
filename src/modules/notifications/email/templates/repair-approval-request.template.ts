@@ -8,7 +8,10 @@ interface RepairApprovalRequestCtx {
 }
 
 function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(amount);
+  return new Intl.NumberFormat('es-MX', {
+    style: 'currency',
+    currency: 'MXN',
+  }).format(amount);
 }
 
 export function repairApprovalRequestTemplate(ctx: RepairApprovalRequestCtx): {
@@ -16,14 +19,16 @@ export function repairApprovalRequestTemplate(ctx: RepairApprovalRequestCtx): {
   html: string;
   text: string;
 } {
-  const costLine = ctx.costEstimate != null
-    ? `<p style="margin:0 0 6px;font-size:13px;color:#777;text-transform:uppercase;letter-spacing:1px;">Costo estimado</p>
+  const costLine =
+    ctx.costEstimate != null
+      ? `<p style="margin:0 0 6px;font-size:13px;color:#777;text-transform:uppercase;letter-spacing:1px;">Costo estimado</p>
        <p style="margin:0;font-size:20px;font-weight:700;color:#16a34a;">${formatCurrency(ctx.costEstimate)}</p>`
-    : '';
+      : '';
 
-  const costText = ctx.costEstimate != null
-    ? `Costo estimado: ${formatCurrency(ctx.costEstimate)}\n`
-    : '';
+  const costText =
+    ctx.costEstimate != null
+      ? `Costo estimado: ${formatCurrency(ctx.costEstimate)}\n`
+      : '';
 
   return {
     subject: `Se requiere tu aprobación para la reparación — ${ctx.appName}`,
