@@ -81,13 +81,17 @@ export class ResponseInterceptor<T> implements NestInterceptor<
         const meta: ResponseMeta = { requestId };
 
         if (isPaginatedResponse(data)) {
-          meta.pagination = {
-            page: data.page,
-            limit: data.limit,
-            total: data.total,
-            totalPages: data.pages,
+          return {
+            success: true,
+            data: {
+              items: data.data,
+              total: data.total,
+              page: data.page,
+              limit: data.limit,
+              pages: data.pages,
+            } as unknown as T,
+            meta,
           };
-          return { success: true, data: data.data as unknown as T, meta };
         }
 
         return { success: true, data, meta };
