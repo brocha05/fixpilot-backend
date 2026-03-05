@@ -33,11 +33,13 @@ export class AdminController {
   @ApiOperation({ summary: 'List all companies with active subscription' })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({ name: 'search', required: false, type: String })
   getCompanies(
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
+    @Query('search') search?: string,
   ) {
-    return this.adminService.getCompanies(page, limit);
+    return this.adminService.getCompanies(page, limit, search);
   }
 
   @Get('companies/:id')

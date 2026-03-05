@@ -40,31 +40,53 @@ export class SubscriptionsController {
     return this.subscriptionsService.getPublicPlans();
   }
 
-  // ─── Admin plan management (x-admin-api-key) ───────────────────────────────
+  // ─── Admin plan management (SUPER_ADMIN via JWT) ───────────────────────────
 
-  @Public()
-  @UseGuards(AdminApiKeyGuard)
+  @ApiBearerAuth('access-token')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUPER_ADMIN)
+  @Get('plans/all')
+  @ApiOperation({ summary: 'List all plans including inactive (super admin only)' })
+  getAllPlans() {
+    return this.subscriptionsService.getAllPlans();
+  }
+
+  @ApiBearerAuth('access-token')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUPER_ADMIN)
   @Post('plans')
-  @ApiOperation({ summary: 'Create a new pricing plan (admin only)' })
+  @ApiOperation({ summary: 'Create a new pricing plan (super admin only)' })
   createPlan(@Body() dto: CreatePlanDto) {
     return this.subscriptionsService.createPlan(dto);
   }
 
-  @Public()
-  @UseGuards(AdminApiKeyGuard)
+  @ApiBearerAuth('access-token')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUPER_ADMIN)
   @Patch('plans/:id')
-  @ApiOperation({ summary: 'Update a pricing plan (admin only)' })
+  @ApiOperation({ summary: 'Update a pricing plan (super admin only)' })
   updatePlan(@Param('id') id: string, @Body() dto: UpdatePlanDto) {
     return this.subscriptionsService.updatePlan(id, dto);
   }
 
-  @Public()
-  @UseGuards(AdminApiKeyGuard)
+  @ApiBearerAuth('access-token')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUPER_ADMIN)
   @Patch('plans/:id/deactivate')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Deactivate a pricing plan (admin only)' })
+  @ApiOperation({ summary: 'Deactivate a pricing plan (super admin only)' })
   deactivatePlan(@Param('id') id: string) {
     return this.subscriptionsService.deactivatePlan(id);
+  }
+
+  @ApiBearerAuth('access-token')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUPER_ADMIN)
+  @Patch('plans/:id/activate')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Reactivate a pricing plan (super admin only)' })
+  activatePlan(@Param('id') id: string) {
+    return this.subscriptionsService.activatePlan(id);
   }
 
   // ─── Authenticated ─────────────────────────────────────────────────────────

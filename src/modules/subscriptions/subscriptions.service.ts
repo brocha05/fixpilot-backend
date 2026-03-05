@@ -116,6 +116,10 @@ export class SubscriptionsService {
     return plan;
   }
 
+  async getAllPlans() {
+    return this.prisma.plan.findMany({ orderBy: { price: 'asc' } });
+  }
+
   async deactivatePlan(id: string): Promise<{ message: string }> {
     await this.prisma.plan.update({
       where: { id },
@@ -123,6 +127,15 @@ export class SubscriptionsService {
     });
     await this.cache.del('plans:public');
     return { message: 'Plan deactivated.' };
+  }
+
+  async activatePlan(id: string): Promise<{ message: string }> {
+    await this.prisma.plan.update({
+      where: { id },
+      data: { isActive: true },
+    });
+    await this.cache.del('plans:public');
+    return { message: 'Plan activated.' };
   }
 
   async getPublicPlans() {
