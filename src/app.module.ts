@@ -38,6 +38,7 @@ import { RepairOrdersModule } from './modules/repair-orders/repair-orders.module
 import { ExpensesModule } from './modules/expenses/expenses.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { PublicModule } from './modules/public/public.module';
+import { BranchesModule } from './modules/branches/branches.module';
 
 @Module({
   imports: [
@@ -99,6 +100,7 @@ import { PublicModule } from './modules/public/public.module';
     ExpensesModule,
     AnalyticsModule,
     PublicModule,
+    BranchesModule,
 
     // ─── Event Bus ────────────────────────────────────────────────────────────
     EventEmitterModule.forRoot({

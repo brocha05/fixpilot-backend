@@ -53,4 +53,9 @@ export class CreateRepairOrderDto {
   @IsPositive()
   @Type(() => Number)
   costEstimate?: number;
+
+  @ApiPropertyOptional({ description: 'UUID de la sucursal (opcional)' })
+  @IsOptional()
+  @IsUUID()
+  branchId?: string;
 }

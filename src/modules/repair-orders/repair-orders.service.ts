@@ -40,6 +40,7 @@ export interface PaginatedRepairOrders {
 
 const DETAIL_INCLUDE = {
   customer: { select: { id: true, name: true, phone: true, email: true } },
+  branch: { select: { id: true, name: true, city: true } },
   images: true,
   comments: {
     include: {
@@ -52,6 +53,7 @@ const DETAIL_INCLUDE = {
 
 const LIST_INCLUDE = {
   customer: { select: { id: true, name: true, phone: true, email: true } },
+  branch: { select: { id: true, name: true, city: true } },
 } as const;
 
 // ─── Service ──────────────────────────────────────────────────────────────────
@@ -78,6 +80,14 @@ export class RepairOrdersService {
     });
     if (!customer) throw new NotFoundException('Cliente no encontrado');
 
+    // Validate branch belongs to this company (if provided)
+    if (dto.branchId) {
+      const branch = await this.prisma.branch.findFirst({
+        where: { id: dto.branchId, companyId, deletedAt: null },
+      });
+      if (!branch) throw new NotFoundException('Sucursal no encontrada');
+    }
+
     const publicTrackingToken = randomBytes(32).toString('hex');
 
     const order = await this.prisma.$transaction(async (tx) => {
@@ -85,6 +95,7 @@ export class RepairOrdersService {
         data: {
           companyId,
           customerId: dto.customerId,
+          branchId: dto.branchId ?? null,
           deviceModel: dto.deviceModel,
           issueDescription: dto.issueDescription,
           urgencyLevel: dto.urgencyLevel ?? 'NORMAL',
@@ -117,6 +128,7 @@ export class RepairOrdersService {
         phone: customer.phone,
         email: customer.email,
       },
+      branch: null, // branch is not eagerly loaded on create
     });
   }
 

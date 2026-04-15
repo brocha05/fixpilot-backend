@@ -56,6 +56,11 @@ enum UrgencyLevel {
   URGENT
 }
 
+enum BranchStatus {
+  ACTIVE
+  INACTIVE
+}
+
 enum ExpenseCategory {
   PARTS
   TOOLS
@@ -87,6 +92,7 @@ model Company {
   customers         Customer[]
   repairOrders      RepairOrder[]
   expenses          Expense[]
+  branches          Branch[]
 
   @@index([slug])
   @@index([deletedAt])
@@ -358,14 +364,18 @@ model RepairOrder {
   completedAt         DateTime?    @map("completed_at")
   approvedAt          DateTime?    @map("approved_at")
 
+  branchId            String?      @db.Uuid @map("branch_id")
+
   company       Company                   @relation(fields: [companyId], references: [id])
   customer      Customer                  @relation(fields: [customerId], references: [id])
+  branch        Branch?                   @relation(fields: [branchId], references: [id])
   images        RepairOrderImage[]
   comments      RepairOrderComment[]
   statusHistory RepairOrderStatusHistory[]
 
   @@index([companyId])
   @@index([customerId])
+  @@index([branchId])
   @@index([status])
   @@index([publicTrackingToken])
   @@index([companyId, status])
@@ -419,6 +429,37 @@ model RepairOrderStatusHistory {
   @@index([orderId])
   @@index([orderId, timestamp])
   @@map("repair_order_status_history")
+}
+
+// ─── Branch ───────────────────────────────────────────────────────────────────
+
+model Branch {
+  id        String       @id @default(uuid()) @db.Uuid
+  companyId String       @db.Uuid @map("company_id")
+  name      String
+  phone     String?
+  email     String?
+  address   String
+  city      String
+  state     String
+  zipCode   String?      @map("zip_code")
+  country   String       @default("MX")
+  status    BranchStatus @default(ACTIVE)
+  isMain    Boolean      @default(false) @map("is_main")
+  notes     String?
+  createdAt DateTime     @default(now()) @map("created_at")
+  updatedAt DateTime     @updatedAt @map("updated_at")
+  deletedAt DateTime?    @map("deleted_at")
+
+  company      Company       @relation(fields: [companyId], references: [id])
+  repairOrders RepairOrder[]
+
+  @@unique([companyId, name])
+  @@index([companyId])
+  @@index([companyId, status])
+  @@index([companyId, deletedAt])
+  @@index([deletedAt])
+  @@map("branches")
 }
 
 // ─── Expense ──────────────────────────────────────────────────────────────────

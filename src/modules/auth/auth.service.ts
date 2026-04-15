@@ -18,7 +18,7 @@ import { LoginDto } from './dto/login.dto';
 import { AcceptInviteDto } from './dto/accept-invite.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { JwtPayload } from '../../common/interfaces';
-import { User, Company } from '@prisma/client';
+import { User, Company, UserRole } from '@prisma/client';
 import {
   NotificationEvent,
   UserRegisteredEvent,
@@ -93,7 +93,7 @@ export class AuthService {
           password: hashedPassword,
           firstName: dto.firstName,
           lastName: dto.lastName,
-          role: 'ADMIN',
+          role: UserRole.ADMIN,
           companyId: newCompany.id,
         },
       });

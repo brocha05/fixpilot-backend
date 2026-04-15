@@ -46,7 +46,9 @@ export class SubscriptionsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.SUPER_ADMIN)
   @Get('plans/all')
-  @ApiOperation({ summary: 'List all plans including inactive (super admin only)' })
+  @ApiOperation({
+    summary: 'List all plans including inactive (super admin only)',
+  })
   getAllPlans() {
     return this.subscriptionsService.getAllPlans();
   }

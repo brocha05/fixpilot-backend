@@ -8,9 +8,16 @@ import {
   RepairOrderComment,
   RepairOrderStatusHistory,
   User,
+  Branch,
 } from '@prisma/client';
 
 // ─── Nested DTOs ──────────────────────────────────────────────────────────────
+
+export class RepairOrderBranchDto {
+  @ApiProperty() id: string;
+  @ApiProperty() name: string;
+  @ApiProperty() city: string;
+}
 
 export class RepairOrderCustomerDto {
   @ApiProperty() id: string;
@@ -44,6 +51,7 @@ export class RepairOrderStatusHistoryDto {
 
 type OrderWithRelations = RepairOrder & {
   customer?: Pick<Customer, 'id' | 'name' | 'phone' | 'email'> | null;
+  branch?: Pick<Branch, 'id' | 'name' | 'city'> | null;
   images?: RepairOrderImage[];
   comments?: (RepairOrderComment & {
     author?: Pick<User, 'id' | 'firstName' | 'lastName'> | null;
@@ -69,8 +77,12 @@ export class RepairOrderResponseDto {
   @ApiProperty() updatedAt: Date;
   @ApiPropertyOptional() completedAt: Date | null;
   @ApiPropertyOptional() approvedAt: Date | null;
+  @ApiPropertyOptional() branchId: string | null;
 
   // ─── Optional relations (included in detail view) ─────────────────────────
+  @ApiPropertyOptional({ type: RepairOrderBranchDto })
+  branch?: RepairOrderBranchDto | null;
+
   @ApiPropertyOptional({ type: RepairOrderCustomerDto })
   customer?: RepairOrderCustomerDto | null;
 
@@ -100,6 +112,17 @@ export class RepairOrderResponseDto {
     dto.updatedAt = order.updatedAt;
     dto.completedAt = order.completedAt ?? null;
     dto.approvedAt = order.approvedAt ?? null;
+    dto.branchId = order.branchId ?? null;
+
+    if (order.branch !== undefined) {
+      dto.branch = order.branch
+        ? {
+            id: order.branch.id,
+            name: order.branch.name,
+            city: order.branch.city,
+          }
+        : null;
+    }
 
     if (order.customer !== undefined) {
       dto.customer = order.customer
