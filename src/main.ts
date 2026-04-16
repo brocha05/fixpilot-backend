@@ -4,6 +4,7 @@ import {
   ClassSerializerInterceptor,
   Logger,
   VersioningType,
+  BadRequestException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
@@ -91,10 +92,22 @@ async function bootstrap(): Promise<void> {
   // ─── Global Validation ────────────────────────────────────────────────────
   app.useGlobalPipes(
     new ValidationPipe({
-      whitelist: true, // Strip unknown properties (mass assignment protection)
+      whitelist: true,
       forbidNonWhitelisted: true,
-      transform: true, // Auto-transform payloads to DTO instances
+      transform: true,
       transformOptions: { enableImplicitConversion: true },
+      exceptionFactory: (errors) => {
+        const details = errors.flatMap((err) =>
+          Object.values(err.constraints ?? {}).map((msg) => ({
+            field: err.property,
+            message: msg,
+          })),
+        );
+        return new BadRequestException({
+          message: 'Validation failed',
+          details,
+        });
+      },
     }),
   );
 

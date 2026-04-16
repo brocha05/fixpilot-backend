@@ -8,10 +8,11 @@ import {
 } from '@nestjs/common';
 import { Response } from 'express';
 import { randomUUID } from 'crypto';
-import type { ErrorApiResponse } from '../interfaces/api-response.interface';
+import type {
+  ErrorApiResponse,
+  ValidationDetail,
+} from '../interfaces/api-response.interface';
 
-// Reverse map: 400 → "BAD_REQUEST", 404 → "NOT_FOUND", etc.
-// HttpStatus is a bidirectional numeric enum — filter to named string keys, then flip.
 const STATUS_CODE_MAP: Record<number, string> = Object.fromEntries(
   Object.entries(HttpStatus)
     .filter(([key]) => isNaN(Number(key)))
@@ -26,27 +27,41 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     const ctx = host.switchToHttp();
     const res = ctx.getResponse<Response>();
 
-    // Reuse the requestId set by ResponseInterceptor when already present
     const existingId = res.getHeader('X-Request-ID') as string | undefined;
     const requestId = existingId ?? randomUUID();
     res.setHeader('X-Request-ID', requestId);
 
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
     let message = 'Internal server error';
-    let details: string[] | undefined;
+    let details: ValidationDetail[] | undefined;
 
     if (exception instanceof HttpException) {
       status = exception.getStatus();
       const exRes = exception.getResponse();
 
       if (typeof exRes === 'object' && exRes !== null) {
-        const raw = (exRes as Record<string, unknown>).message;
-        if (Array.isArray(raw)) {
-          // ValidationPipe throws { message: string[], error: 'Bad Request' }
-          details = raw as string[];
+        const raw = exRes as Record<string, unknown>;
+
+        // Structured validation errors produced by exceptionFactory in main.ts
+        if (
+          Array.isArray(raw.details) &&
+          raw.details.length > 0 &&
+          typeof (raw.details as unknown[])[0] === 'object'
+        ) {
+          details = raw.details as ValidationDetail[];
+          message =
+            typeof raw.message === 'string' ? raw.message : 'Validation failed';
+        } else if (Array.isArray(raw.message)) {
+          // Fallback: flat string array — parse "field message text" format
+          details = (raw.message as string[]).map((m) => {
+            const spaceIdx = m.indexOf(' ');
+            return spaceIdx > -1
+              ? { field: m.slice(0, spaceIdx), message: m.slice(spaceIdx + 1) }
+              : { field: 'unknown', message: m };
+          });
           message = 'Validation failed';
-        } else if (typeof raw === 'string') {
-          message = raw;
+        } else if (typeof raw.message === 'string') {
+          message = raw.message;
         } else {
           message = exception.message;
         }
@@ -56,7 +71,6 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         message = exception.message;
       }
     } else if (exception instanceof Error) {
-      // Log internals but never expose stack traces to clients
       this.logger.error(
         `Unhandled exception: ${exception.message}`,
         exception.stack,
@@ -65,10 +79,14 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       this.logger.error('Unknown exception type thrown', String(exception));
     }
 
+    const code = details
+      ? 'VALIDATION_ERROR'
+      : (STATUS_CODE_MAP[status] ?? 'INTERNAL_SERVER_ERROR');
+
     const body: ErrorApiResponse = {
       success: false,
       error: {
-        code: STATUS_CODE_MAP[status] ?? 'INTERNAL_SERVER_ERROR',
+        code,
         message,
         ...(details !== undefined && { details }),
       },

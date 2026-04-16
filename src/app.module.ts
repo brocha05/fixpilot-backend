@@ -39,6 +39,8 @@ import { ExpensesModule } from './modules/expenses/expenses.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { PublicModule } from './modules/public/public.module';
 import { BranchesModule } from './modules/branches/branches.module';
+import { InventoryModule } from './modules/inventory/inventory.module';
+import { SalesModule } from './modules/sales/sales.module';
 
 @Module({
   imports: [
@@ -101,6 +103,8 @@ import { BranchesModule } from './modules/branches/branches.module';
     AnalyticsModule,
     PublicModule,
     BranchesModule,
+    InventoryModule,
+    SalesModule,
 
     // ─── Event Bus ────────────────────────────────────────────────────────────
     EventEmitterModule.forRoot({

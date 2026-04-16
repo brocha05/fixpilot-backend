@@ -61,6 +61,24 @@ enum BranchStatus {
   INACTIVE
 }
 
+enum ProductStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum SaleStatus {
+  COMPLETED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  TRANSFER
+  OTHER
+}
+
 enum ExpenseCategory {
   PARTS
   TOOLS
@@ -93,6 +111,8 @@ model Company {
   repairOrders      RepairOrder[]
   expenses          Expense[]
   branches          Branch[]
+  products          Product[]
+  sales             Sale[]
 
   @@index([slug])
   @@index([deletedAt])
@@ -338,6 +358,7 @@ model Customer {
 
   company      Company       @relation(fields: [companyId], references: [id])
   repairOrders RepairOrder[]
+  sales        Sale[]
 
   @@index([companyId])
   @@index([phone])
@@ -453,6 +474,8 @@ model Branch {
 
   company      Company       @relation(fields: [companyId], references: [id])
   repairOrders RepairOrder[]
+  products     Product[]
+  sales        Sale[]
 
   @@unique([companyId, name])
   @@index([companyId])
@@ -460,6 +483,84 @@ model Branch {
   @@index([companyId, deletedAt])
   @@index([deletedAt])
   @@map("branches")
+}
+
+// ─── Product (Inventory) ──────────────────────────────────────────────────────
+
+model Product {
+  id          String        @id @default(uuid()) @db.Uuid
+  companyId   String        @db.Uuid @map("company_id")
+  branchId    String?       @db.Uuid @map("branch_id")
+  name        String
+  description String?
+  sku         String?
+  category    String?
+  price       Decimal       @db.Decimal(10, 2)
+  cost        Decimal       @default(0) @db.Decimal(10, 2)
+  stock       Int           @default(0)
+  minStock    Int           @default(0) @map("min_stock")
+  unit        String        @default("pza")
+  status      ProductStatus @default(ACTIVE)
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+  deletedAt   DateTime?     @map("deleted_at")
+
+  company   Company    @relation(fields: [companyId], references: [id])
+  branch    Branch?    @relation(fields: [branchId], references: [id])
+  saleItems SaleItem[]
+
+  @@unique([companyId, sku])
+  @@index([companyId])
+  @@index([companyId, status])
+  @@index([companyId, deletedAt])
+  @@index([deletedAt])
+  @@map("products")
+}
+
+// ─── Sale ─────────────────────────────────────────────────────────────────────
+
+model Sale {
+  id            String        @id @default(uuid()) @db.Uuid
+  companyId     String        @db.Uuid @map("company_id")
+  branchId      String?       @db.Uuid @map("branch_id")
+  customerId    String?       @db.Uuid @map("customer_id")
+  totalAmount   Decimal       @db.Decimal(10, 2) @map("total_amount")
+  discount      Decimal       @default(0) @db.Decimal(10, 2)
+  finalAmount   Decimal       @db.Decimal(10, 2) @map("final_amount")
+  paymentMethod PaymentMethod @map("payment_method")
+  status        SaleStatus    @default(COMPLETED)
+  notes         String?
+  createdById   String?       @db.Uuid @map("created_by_id")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  company   Company    @relation(fields: [companyId], references: [id])
+  branch    Branch?    @relation(fields: [branchId], references: [id])
+  customer  Customer?  @relation(fields: [customerId], references: [id])
+  items     SaleItem[]
+
+  @@index([companyId])
+  @@index([companyId, status])
+  @@index([companyId, createdAt])
+  @@map("sales")
+}
+
+// ─── SaleItem ─────────────────────────────────────────────────────────────────
+
+model SaleItem {
+  id        String  @id @default(uuid()) @db.Uuid
+  saleId    String  @db.Uuid @map("sale_id")
+  productId String  @db.Uuid @map("product_id")
+  quantity  Int
+  unitPrice Decimal @db.Decimal(10, 2) @map("unit_price")
+  subtotal  Decimal @db.Decimal(10, 2)
+
+  sale    Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@index([saleId])
+  @@index([productId])
+  @@map("sale_items")
 }
 
 // ─── Expense ──────────────────────────────────────────────────────────────────

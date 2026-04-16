@@ -2,10 +2,30 @@ export interface ResponseMeta {
   requestId: string;
 }
 
+export interface PaginatedMeta extends ResponseMeta {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
 export interface SuccessApiResponse<T = unknown> {
   success: true;
   data: T;
+  message?: string;
   meta: ResponseMeta;
+}
+
+export interface PaginatedApiResponse<T = unknown> {
+  success: true;
+  data: T[];
+  message?: string;
+  meta: PaginatedMeta;
+}
+
+export interface ValidationDetail {
+  field: string;
+  message: string;
 }
 
 export interface ErrorApiResponse {
@@ -13,18 +33,18 @@ export interface ErrorApiResponse {
   error: {
     code: string;
     message: string;
-    details?: string[];
+    details?: ValidationDetail[];
   };
-  meta: Pick<ResponseMeta, 'requestId'>;
+  meta: ResponseMeta;
 }
 
 export type ApiResponse<T = unknown> = SuccessApiResponse<T> | ErrorApiResponse;
 
-// Duck-type contract matching UsersService.findAll shape
+// Internal contract returned by service list methods
 export interface PaginatedServiceResponse<T = unknown> {
   data: T[];
   total: number;
   page: number;
   limit: number;
-  pages: number; // UsersService uses "pages" — normalized to "totalPages" in meta
+  pages: number;
 }

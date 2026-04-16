@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { RepairStatus } from '@prisma/client';
+import { RepairStatus, SaleStatus } from '@prisma/client';
 
 // ─── Response Shapes ─────────────────────────────────────────────────────────
 
@@ -23,10 +23,18 @@ export interface ExpenseSummary {
   period: { year: number; month?: number };
 }
 
+export interface SalesSummary {
+  totalSales: number;
+  salesCount: number;
+  period: { year: number; month?: number };
+}
+
 export interface DashboardSummary {
   revenue: RevenueSummary;
   repairs: RepairStats;
   expenses: ExpenseSummary;
+  sales: SalesSummary;
+  lowStockCount: number;
   netProfit: number;
 }
 
@@ -168,16 +176,54 @@ export class AnalyticsService {
     const year = new Date().getFullYear();
     const month = new Date().getMonth() + 1;
 
-    const [revenue, repairs, expenses] = await Promise.all([
-      this.getRevenueSummary(companyId, year, month),
-      this.getRepairStats(companyId),
-      this.getExpenseSummary(companyId, year, month),
-    ]);
+    const [revenue, repairs, expenses, sales, lowStockCount] =
+      await Promise.all([
+        this.getRevenueSummary(companyId, year, month),
+        this.getRepairStats(companyId),
+        this.getExpenseSummary(companyId, year, month),
+        this.getSalesSummary(companyId, year, month),
+        this.getLowStockCount(companyId),
+      ]);
 
     const netProfit =
-      Math.round((revenue.totalRevenue - expenses.totalExpenses) * 100) / 100;
+      Math.round(
+        (revenue.totalRevenue + sales.totalSales - expenses.totalExpenses) *
+          100,
+      ) / 100;
 
-    return { revenue, repairs, expenses, netProfit };
+    return { revenue, repairs, expenses, sales, lowStockCount, netProfit };
+  }
+
+  // ─── Sales Summary ───────────────────────────────────────────────────────────
+
+  async getSalesSummary(
+    companyId: string,
+    year: number,
+    month?: number,
+  ): Promise<SalesSummary> {
+    const dateRange = this.buildDateRange(year, month);
+
+    const result = await this.prisma.sale.aggregate({
+      where: { companyId, status: SaleStatus.COMPLETED, createdAt: dateRange },
+      _sum: { finalAmount: true },
+      _count: { id: true },
+    });
+
+    return {
+      totalSales: Math.round(Number(result._sum.finalAmount ?? 0) * 100) / 100,
+      salesCount: result._count.id,
+      period: { year, month },
+    };
+  }
+
+  // ─── Low Stock ───────────────────────────────────────────────────────────────
+
+  async getLowStockCount(companyId: string): Promise<number> {
+    const products = await this.prisma.product.findMany({
+      where: { companyId, deletedAt: null, status: 'ACTIVE' },
+      select: { stock: true, minStock: true },
+    });
+    return products.filter((p) => p.stock <= p.minStock).length;
   }
 
   // ─── Helpers ──────────────────────────────────────────────────────────────────
