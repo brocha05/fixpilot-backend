@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { randomBytes } from 'crypto';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { RepairStatus } from '@prisma/client';
+import { Prisma, RepairStatus } from '@prisma/client';
 
 import { PrismaService } from '../../prisma/prisma.service';
 import {
@@ -35,6 +35,10 @@ export interface PaginatedRepairOrders {
   limit: number;
   pages: number;
 }
+
+const FOLIO_PREFIX = 'RP';
+const FOLIO_NUMBER_WIDTH = 6;
+const MAX_FOLIO_CREATE_ATTEMPTS = 3;
 
 // ─── Prisma include shapes ────────────────────────────────────────────────────
 
@@ -90,31 +94,12 @@ export class RepairOrdersService {
 
     const publicTrackingToken = randomBytes(32).toString('hex');
 
-    const order = await this.prisma.$transaction(async (tx) => {
-      const created = await tx.repairOrder.create({
-        data: {
-          companyId,
-          customerId: dto.customerId,
-          branchId: dto.branchId ?? null,
-          deviceModel: dto.deviceModel,
-          issueDescription: dto.issueDescription,
-          urgencyLevel: dto.urgencyLevel ?? 'NORMAL',
-          costEstimate: dto.costEstimate ?? null,
-          publicTrackingToken,
-        },
-      });
-
-      await tx.repairOrderStatusHistory.create({
-        data: {
-          orderId: created.id,
-          previousStatus: null,
-          newStatus: RepairStatus.PENDING,
-          changedBy: userId,
-        },
-      });
-
-      return created;
-    });
+    const order = await this.createWithFolioRetry(
+      companyId,
+      userId,
+      dto,
+      publicTrackingToken,
+    );
 
     this.logger.log(
       `RepairOrder created: ${order.id} for company: ${companyId}`,
@@ -145,15 +130,19 @@ export class RepairOrdersService {
       status,
       urgencyLevel,
       customerId,
+      folio,
       fromDate,
       toDate,
     } = filters;
 
-    const where = {
+    const where: Prisma.RepairOrderWhereInput = {
       companyId,
       ...(status ? { status } : {}),
       ...(urgencyLevel ? { urgencyLevel } : {}),
       ...(customerId ? { customerId } : {}),
+      ...(folio
+        ? { folio: { contains: folio.trim(), mode: 'insensitive' } }
+        : {}),
       ...(fromDate || toDate
         ? {
             createdAt: {
@@ -192,6 +181,20 @@ export class RepairOrdersService {
   ): Promise<RepairOrderResponseDto> {
     const order = await this.prisma.repairOrder.findFirst({
       where: { id, companyId },
+      include: DETAIL_INCLUDE,
+    });
+    if (!order)
+      throw new NotFoundException('Orden de reparación no encontrada');
+
+    return RepairOrderResponseDto.fromEntity(order);
+  }
+
+  async findByFolio(
+    folio: string,
+    companyId: string,
+  ): Promise<RepairOrderResponseDto> {
+    const order = await this.prisma.repairOrder.findFirst({
+      where: { folio: folio.trim().toUpperCase(), companyId },
       include: DETAIL_INCLUDE,
     });
     if (!order)
@@ -429,6 +432,7 @@ export class RepairOrdersService {
 
     // Return only public-safe fields — never expose companyId, financial data, internal info
     return {
+      folio: order.folio,
       deviceModel: order.deviceModel,
       issueDescription: order.issueDescription,
       status: order.status,
@@ -446,6 +450,69 @@ export class RepairOrdersService {
   }
 
   // ─── Private helpers ──────────────────────────────────────────────────────────
+
+  private async createWithFolioRetry(
+    companyId: string,
+    userId: string,
+    dto: CreateRepairOrderDto,
+    publicTrackingToken: string,
+  ) {
+    for (let attempt = 1; attempt <= MAX_FOLIO_CREATE_ATTEMPTS; attempt++) {
+      try {
+        return await this.prisma.$transaction(async (tx) => {
+          const latest = await tx.repairOrder.aggregate({
+            where: { companyId },
+            _max: { folioNumber: true },
+          });
+          const folioNumber = (latest._max.folioNumber ?? 0) + 1;
+          const folio = this.formatFolio(folioNumber);
+
+          const created = await tx.repairOrder.create({
+            data: {
+              companyId,
+              folio,
+              folioNumber,
+              customerId: dto.customerId,
+              branchId: dto.branchId ?? null,
+              deviceModel: dto.deviceModel,
+              issueDescription: dto.issueDescription,
+              urgencyLevel: dto.urgencyLevel ?? 'NORMAL',
+              costEstimate: dto.costEstimate ?? null,
+              publicTrackingToken,
+            },
+          });
+
+          await tx.repairOrderStatusHistory.create({
+            data: {
+              orderId: created.id,
+              previousStatus: null,
+              newStatus: RepairStatus.PENDING,
+              changedBy: userId,
+            },
+          });
+
+          return created;
+        });
+      } catch (error) {
+        if (
+          attempt < MAX_FOLIO_CREATE_ATTEMPTS &&
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === 'P2002'
+        ) {
+          continue;
+        }
+        throw error;
+      }
+    }
+
+    throw new BadRequestException('No se pudo generar el folio de la orden');
+  }
+
+  private formatFolio(folioNumber: number): string {
+    const year = new Date().getFullYear();
+    const sequence = String(folioNumber).padStart(FOLIO_NUMBER_WIDTH, '0');
+    return `${FOLIO_PREFIX}-${year}-${sequence}`;
+  }
 
   private async findOrderOrThrow(id: string, companyId: string) {
     const order = await this.prisma.repairOrder.findFirst({

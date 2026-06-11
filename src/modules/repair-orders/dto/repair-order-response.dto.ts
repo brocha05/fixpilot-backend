@@ -64,6 +64,8 @@ type OrderWithRelations = RepairOrder & {
 export class RepairOrderResponseDto {
   @ApiProperty() id: string;
   @ApiProperty() companyId: string;
+  @ApiProperty() folio: string;
+  @ApiProperty() folioNumber: number;
   @ApiProperty() customerId: string;
   @ApiProperty() deviceModel: string;
   @ApiProperty() issueDescription: string;
@@ -99,6 +101,8 @@ export class RepairOrderResponseDto {
     const dto = new RepairOrderResponseDto();
     dto.id = order.id;
     dto.companyId = order.companyId;
+    dto.folio = order.folio;
+    dto.folioNumber = order.folioNumber;
     dto.customerId = order.customerId;
     dto.deviceModel = order.deviceModel;
     dto.issueDescription = order.issueDescription;

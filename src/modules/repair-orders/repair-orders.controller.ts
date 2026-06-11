@@ -61,6 +61,18 @@ export class RepairOrdersController {
     return this.repairOrdersService.findAll(user.companyId, filters);
   }
 
+  @Get('folio/:folio')
+  @ApiOperation({
+    summary: 'Obtener detalle completo de una orden por folio',
+  })
+  @ApiParam({ name: 'folio', example: 'RP-2026-000123' })
+  findOneByFolio(
+    @Param('folio') folio: string,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.repairOrdersService.findByFolio(folio, user.companyId);
+  }
+
   @Get(':id')
   @ApiOperation({
     summary:

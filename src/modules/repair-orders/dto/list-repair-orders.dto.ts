@@ -1,9 +1,25 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsDateString, IsEnum, IsOptional, IsUUID } from 'class-validator';
+import {
+  IsDateString,
+  IsEnum,
+  IsOptional,
+  IsString,
+  IsUUID,
+  MaxLength,
+} from 'class-validator';
 import { RepairStatus, UrgencyLevel } from '@prisma/client';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 
 export class ListRepairOrdersDto extends PaginationDto {
+  @ApiPropertyOptional({
+    description: 'Buscar por folio de orden',
+    example: 'RP-2026-000123',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(32)
+  folio?: string;
+
   @ApiPropertyOptional({
     enum: RepairStatus,
     description: 'Filtrar por estado',

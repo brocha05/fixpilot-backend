@@ -359,6 +359,8 @@ model Customer {
 model RepairOrder {
   id                  String       @id @default(uuid()) @db.Uuid
   companyId           String       @db.Uuid @map("company_id")
+  folio               String
+  folioNumber         Int          @map("folio_number")
   customerId          String       @db.Uuid @map("customer_id")
   deviceModel         String       @map("device_model")
   issueDescription    String       @map("issue_description")
@@ -383,12 +385,15 @@ model RepairOrder {
   statusHistory RepairOrderStatusHistory[]
 
   @@index([companyId])
+  @@index([folio])
   @@index([customerId])
   @@index([branchId])
   @@index([status])
   @@index([publicTrackingToken])
   @@index([companyId, status])
   @@index([companyId, createdAt])
+  @@unique([companyId, folio])
+  @@unique([companyId, folioNumber])
   @@map("repair_orders")
 }
 

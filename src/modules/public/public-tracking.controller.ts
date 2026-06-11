@@ -44,6 +44,7 @@ export class PublicTrackingController {
     const order = await this.repairOrdersService.findByToken(token);
 
     return {
+      folio: order.folio,
       deviceModel: order.deviceModel,
       issueDescription: order.issueDescription,
       status: order.status,

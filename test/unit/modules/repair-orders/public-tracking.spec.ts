@@ -23,6 +23,8 @@ function makeOrder() {
   return {
     id: 'order-1',
     companyId: 'company-1', // must NOT appear in public response
+    folio: 'RP-2024-000001',
+    folioNumber: 1,
     customerId: 'customer-1',
     deviceModel: 'iPhone 14 Pro',
     issueDescription: 'Pantalla rota',
@@ -99,6 +101,7 @@ describe('RepairOrdersService — Public Tracking', () => {
       const result = await service.findByToken(VALID_TOKEN);
 
       expect(result.deviceModel).toBe('iPhone 14 Pro');
+      expect(result.folio).toBe('RP-2024-000001');
       expect(result.status).toBe(RepairStatus.IN_PROGRESS);
       expect(result.customer.name).toBe('Juan Pérez');
       expect(result.statusHistory).toHaveLength(2);
