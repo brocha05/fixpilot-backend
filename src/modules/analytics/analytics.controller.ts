@@ -68,16 +68,18 @@ export class AnalyticsController {
     return this.analyticsService.getRepairStats(user.companyId);
   }
 
-  @Get('expenses')
-  @ApiOperation({ summary: 'Resumen de gastos por período y categoría' })
+  @Get('inventory-costs')
+  @ApiOperation({
+    summary: 'Resumen de costos de inventario por período y categoría',
+  })
   @ApiQuery({ name: 'year', required: false, example: 2024 })
   @ApiQuery({ name: 'month', required: false, example: 6 })
-  getExpenses(
+  getInventoryCosts(
     @CurrentUser() user: JwtPayload,
     @Query() period: PeriodQueryDto,
   ) {
     const year = period.year ?? new Date().getFullYear();
-    return this.analyticsService.getExpenseSummary(
+    return this.analyticsService.getInventoryCostSummary(
       user.companyId,
       year,
       period.month,

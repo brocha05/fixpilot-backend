@@ -1,7 +1,7 @@
 /**
  * AnalyticsService — Unit Tests
  *
- * Verifies revenue, expense, and repair stats calculations using mocked Prisma.
+ * Verifies revenue, inventory cost, and repair stats calculations using mocked Prisma.
  */
 
 import { Test, TestingModule } from '@nestjs/testing';
@@ -20,8 +20,14 @@ const mockPrisma = {
     findMany: jest.fn(),
     groupBy: jest.fn(),
   },
-  expense: {
-    groupBy: jest.fn(),
+  saleItem: {
+    findMany: jest.fn(),
+  },
+  sale: {
+    aggregate: jest.fn(),
+  },
+  product: {
+    findMany: jest.fn(),
   },
   $queryRaw: jest.fn(),
 };
@@ -115,31 +121,43 @@ describe('AnalyticsService', () => {
     });
   });
 
-  // ─── Expense Stats ───────────────────────────────────────────────────────────
+  // ─── Inventory Cost Stats ───────────────────────────────────────────────────
 
-  describe('getExpenseSummary', () => {
-    it('aggregates expenses by category', async () => {
-      mockPrisma.expense.groupBy.mockResolvedValue([
-        { category: 'PARTS', _sum: { amount: makeDecimal(3000) } },
-        { category: 'TOOLS', _sum: { amount: makeDecimal(500) } },
-        { category: 'SHIPPING', _sum: { amount: makeDecimal(250.5) } },
+  describe('getInventoryCostSummary', () => {
+    it('calculates inventory costs by product category from completed sales', async () => {
+      mockPrisma.saleItem.findMany.mockResolvedValue([
+        {
+          quantity: 2,
+          product: { cost: makeDecimal(800), category: 'Pantallas' },
+        },
+        {
+          quantity: 1,
+          product: { cost: makeDecimal(500), category: 'Herramientas' },
+        },
+        {
+          quantity: 3,
+          product: { cost: makeDecimal(250.5), category: 'Pantallas' },
+        },
       ]);
 
-      const result = await service.getExpenseSummary('company-1', 2024, 1);
+      const result = await service.getInventoryCostSummary(
+        'company-1',
+        2024,
+        1,
+      );
 
-      expect(result.byCategory['PARTS']).toBe(3000);
-      expect(result.byCategory['TOOLS']).toBe(500);
-      expect(result.byCategory['SHIPPING']).toBe(250.5);
-      expect(result.totalExpenses).toBeCloseTo(3750.5, 2);
+      expect(result.byCategory['Pantallas']).toBe(2351.5);
+      expect(result.byCategory['Herramientas']).toBe(500);
+      expect(result.totalCost).toBeCloseTo(2851.5, 2);
       expect(result.period).toEqual({ year: 2024, month: 1 });
     });
 
-    it('returns 0 total when no expenses', async () => {
-      mockPrisma.expense.groupBy.mockResolvedValue([]);
+    it('returns 0 total when no completed sale items exist', async () => {
+      mockPrisma.saleItem.findMany.mockResolvedValue([]);
 
-      const result = await service.getExpenseSummary('company-1', 2024);
+      const result = await service.getInventoryCostSummary('company-1', 2024);
 
-      expect(result.totalExpenses).toBe(0);
+      expect(result.totalCost).toBe(0);
       expect(result.byCategory).toEqual({});
     });
   });
@@ -147,7 +165,7 @@ describe('AnalyticsService', () => {
   // ─── Net Profit ──────────────────────────────────────────────────────────────
 
   describe('getDashboardSummary (net profit)', () => {
-    it('calculates netProfit as revenue minus expenses', async () => {
+    it('calculates netProfit as revenue plus sales minus inventory costs', async () => {
       // Stub individual methods
       jest.spyOn(service, 'getRevenueSummary').mockResolvedValue({
         totalRevenue: 10000,
@@ -160,15 +178,21 @@ describe('AnalyticsService', () => {
         completed: 15,
         avgRepairTimeHours: 8,
       });
-      jest.spyOn(service, 'getExpenseSummary').mockResolvedValue({
-        totalExpenses: 3500,
+      jest.spyOn(service, 'getInventoryCostSummary').mockResolvedValue({
+        totalCost: 3500,
         byCategory: {},
         period: { year: 2024, month: 1 },
       });
+      jest.spyOn(service, 'getSalesSummary').mockResolvedValue({
+        totalSales: 2000,
+        salesCount: 5,
+        period: { year: 2024, month: 1 },
+      });
+      jest.spyOn(service, 'getLowStockCount').mockResolvedValue(0);
 
       const result = await service.getDashboardSummary('company-1');
 
-      expect(result.netProfit).toBe(6500); // 10000 - 3500
+      expect(result.netProfit).toBe(8500); // 10000 + 2000 - 3500
     });
   });
 });

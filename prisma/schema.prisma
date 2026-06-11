@@ -79,17 +79,6 @@ enum PaymentMethod {
   OTHER
 }
 
-enum ExpenseCategory {
-  PARTS
-  TOOLS
-  SHIPPING
-  UTILITIES
-  SALARIES
-  RENT
-  MARKETING
-  OTHER
-}
-
 // ─── Company ───────────────────────────────────────────────────────────────────
 
 model Company {
@@ -109,7 +98,6 @@ model Company {
   invitationTokens  InvitationToken[]
   customers         Customer[]
   repairOrders      RepairOrder[]
-  expenses          Expense[]
   branches          Branch[]
   products          Product[]
   sales             Sale[]
@@ -561,22 +549,4 @@ model SaleItem {
   @@index([saleId])
   @@index([productId])
   @@map("sale_items")
-}
-
-// ─── Expense ──────────────────────────────────────────────────────────────────
-
-model Expense {
-  id          String          @id @default(uuid()) @db.Uuid
-  companyId   String          @db.Uuid @map("company_id")
-  description String
-  amount      Decimal         @db.Decimal(10, 2)
-  category    ExpenseCategory
-  createdAt   DateTime        @default(now()) @map("created_at")
-
-  company Company @relation(fields: [companyId], references: [id])
-
-  @@index([companyId])
-  @@index([companyId, category])
-  @@index([companyId, createdAt])
-  @@map("expenses")
 }

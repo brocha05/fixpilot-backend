@@ -17,8 +17,8 @@ export interface RepairStats {
   avgRepairTimeHours: number | null;
 }
 
-export interface ExpenseSummary {
-  totalExpenses: number;
+export interface InventoryCostSummary {
+  totalCost: number;
   byCategory: Record<string, number>;
   period: { year: number; month?: number };
 }
@@ -32,7 +32,7 @@ export interface SalesSummary {
 export interface DashboardSummary {
   revenue: RevenueSummary;
   repairs: RepairStats;
-  expenses: ExpenseSummary;
+  inventoryCosts: InventoryCostSummary;
   sales: SalesSummary;
   lowStockCount: number;
   netProfit: number;
@@ -139,32 +139,45 @@ export class AnalyticsService {
     return { total, byStatus, completed, avgRepairTimeHours };
   }
 
-  // ─── Expense Stats ───────────────────────────────────────────────────────────
+  // ─── Inventory Cost Stats ───────────────────────────────────────────────────
 
-  async getExpenseSummary(
+  async getInventoryCostSummary(
     companyId: string,
     year: number,
     month?: number,
-  ): Promise<ExpenseSummary> {
+  ): Promise<InventoryCostSummary> {
     const dateRange = this.buildDateRange(year, month);
 
-    const grouped = await this.prisma.expense.groupBy({
-      by: ['category'],
-      where: { companyId, createdAt: dateRange },
-      _sum: { amount: true },
+    const saleItems = await this.prisma.saleItem.findMany({
+      where: {
+        sale: {
+          companyId,
+          status: SaleStatus.COMPLETED,
+          createdAt: dateRange,
+        },
+      },
+      select: {
+        quantity: true,
+        product: { select: { cost: true, category: true } },
+      },
     });
 
     const byCategory: Record<string, number> = {};
-    let totalExpenses = 0;
+    let totalCost = 0;
 
-    for (const g of grouped) {
-      const amount = Math.round(Number(g._sum.amount ?? 0) * 100) / 100;
-      byCategory[g.category] = amount;
-      totalExpenses += amount;
+    for (const item of saleItems) {
+      const category = item.product.category ?? 'Sin categoria';
+      const amount = Number(item.product.cost) * item.quantity;
+      byCategory[category] = (byCategory[category] ?? 0) + amount;
+      totalCost += amount;
+    }
+
+    for (const category of Object.keys(byCategory)) {
+      byCategory[category] = Math.round(byCategory[category] * 100) / 100;
     }
 
     return {
-      totalExpenses: Math.round(totalExpenses * 100) / 100,
+      totalCost: Math.round(totalCost * 100) / 100,
       byCategory,
       period: { year, month },
     };
@@ -176,22 +189,29 @@ export class AnalyticsService {
     const year = new Date().getFullYear();
     const month = new Date().getMonth() + 1;
 
-    const [revenue, repairs, expenses, sales, lowStockCount] =
+    const [revenue, repairs, inventoryCosts, sales, lowStockCount] =
       await Promise.all([
         this.getRevenueSummary(companyId, year, month),
         this.getRepairStats(companyId),
-        this.getExpenseSummary(companyId, year, month),
+        this.getInventoryCostSummary(companyId, year, month),
         this.getSalesSummary(companyId, year, month),
         this.getLowStockCount(companyId),
       ]);
 
     const netProfit =
       Math.round(
-        (revenue.totalRevenue + sales.totalSales - expenses.totalExpenses) *
+        (revenue.totalRevenue + sales.totalSales - inventoryCosts.totalCost) *
           100,
       ) / 100;
 
-    return { revenue, repairs, expenses, sales, lowStockCount, netProfit };
+    return {
+      revenue,
+      repairs,
+      inventoryCosts,
+      sales,
+      lowStockCount,
+      netProfit,
+    };
   }
 
   // ─── Sales Summary ───────────────────────────────────────────────────────────

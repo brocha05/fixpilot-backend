@@ -35,7 +35,6 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { AdminModule } from './modules/admin/admin.module';
 import { CustomersModule } from './modules/customers/customers.module';
 import { RepairOrdersModule } from './modules/repair-orders/repair-orders.module';
-import { ExpensesModule } from './modules/expenses/expenses.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { PublicModule } from './modules/public/public.module';
 import { BranchesModule } from './modules/branches/branches.module';
@@ -99,7 +98,6 @@ import { SalesModule } from './modules/sales/sales.module';
     AdminModule,
     CustomersModule,
     RepairOrdersModule,
-    ExpensesModule,
     AnalyticsModule,
     PublicModule,
     BranchesModule,
